@@ -4,9 +4,11 @@ from pythonosc import udp_client
 ip = "192.168.20.16"
 port = 6868
 client = udp_client.SimpleUDPClient(ip, port)
-print("Sending osc to",ip,"port:", port)
+print("Sending osc to", ip, "port:", port)
+stillnessCount = 0
+stillnessThreshold = 100  # number of frames of stillness before sending OSC message
 
-cap = cv2.VideoCapture(2)  # change index until you get the cam you want
+cap = cv2.VideoCapture(0)  # change index until you get the cam you want
 ret1, frame1 = cap.read()
 baseFrame = cv2.cvtColor(frame1, cv2.COLOR_BGR2GRAY)
 baseFrame = cv2.GaussianBlur(baseFrame, (21, 21), 0)
@@ -30,15 +32,19 @@ while(True):
         threshold, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     if len(contour) > 0:
-        client.send_message("/motion", "motion dectected")
+        stillnessCount = 0
+    else:
+        stillnessCount += 1
+    if stillnessCount == stillnessThreshold:
+        client.send_message("/isMotionDetected", False)
+    if stillnessCount == 0:
+        client.send_message("/isMotionDetected", True)
 
     for i in contour:
         if cv2.contourArea(i) < 50:
             continue
-
         (x, y, w, h) = cv2.boundingRect(i)
         cv2.rectangle(frame2, (x, y), (x + w, y + h), (255, 0, 0), 2)
-
     cv2.imshow('window', frame2)
     frameCount += 1
 
